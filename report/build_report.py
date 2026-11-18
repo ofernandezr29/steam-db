@@ -225,6 +225,7 @@ table.small { font-size: 7.6pt; }
 pre { background: #f7fafc; border: 1px solid #e2e8f0; border-left: 3px solid #2b6cb0;
       padding: 6pt 8pt; font: 7.4pt/1.35 'DejaVu Sans Mono', monospace; white-space: pre-wrap;
       margin: 4pt 0 6pt; }
+a { color: #2b6cb0; text-decoration: none; }
 code { font: 8pt 'DejaVu Sans Mono', monospace; background: #edf2f7; padding: 0 2pt; }
 .cover { height: 245mm; display: flex; flex-direction: column; }
 .cover .band { background: #1a365d; color: white; padding: 22pt 24pt; margin: 0 0 18pt; }
@@ -266,6 +267,8 @@ html_doc = f"""<!doctype html><html><head><meta charset="utf-8"><style>{CSS}</st
     <tr><td>Source</td><td>https://www.kaggle.com/datasets/antonkozyriev/game-recommendations-on-steam</td></tr>
     <tr><td>License</td><td>CC0 1.0: Public Domain</td></tr>
     <tr><td>Database</td><td>PostgreSQL 18.6 · psycopg2 2.9 · Streamlit 1.67 · Plotly 7.1</td></tr>
+    <tr><td>Repository</td><td><a href="https://github.com/ofernandezr29/steam-db">https://github.com/ofernandezr29/steam-db</a></td></tr>
+    <tr><td>Slides (GitHub Pages)</td><td><a href="https://ofernandezr29.github.io/steam-db/">https://ofernandezr29.github.io/steam-db/</a></td></tr>
     <tr><td>Submission</td><td>25 November 2026</td></tr>
   </table>
   <div class="kpis">
@@ -495,6 +498,9 @@ design of the model, schema, ETL, queries, visualization, report and presentatio
 <code>EFFORT_LOG.md</code> in the repository.</p>
 
 <h2>Appendix B. How to run</h2>
+<p>Code: <a href="https://github.com/ofernandezr29/steam-db">github.com/ofernandezr29/steam-db</a> ·
+Presentation slides online: <a href="https://ofernandezr29.github.io/steam-db/">ofernandezr29.github.io/steam-db</a>
+(arrow keys to move, F for full screen).</p>
 <pre>scripts/setup.sh                 # venv, download, CREATE DATABASE, schema, load, indexes, checks
 .venv/bin/python etl/load.py --inject-error   # rollback demo (schema must be empty)
 .venv/bin/python profiling/load_raw.py && .venv/bin/python profiling/run_profile.py   # data profile
