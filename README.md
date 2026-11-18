@@ -6,7 +6,7 @@ Dataset: [Game Recommendations on Steam](https://www.kaggle.com/datasets/antonko
 by Anton Kozyriev, Kaggle, license CC0 1.0. It has four files: 50,872 games, 14.3 M users and 41.2 M reviews.
 The raw data is **not** committed. `scripts/download_data.sh` downloads it into `data/`.
 
-Report: [`report/Project_B_Report.pdf`](report/Project_B_Report.pdf) · Slides: [`presentation/index.html`](presentation/index.html) (open it in a browser, use ← → and F for full screen)
+Report: [`report/Project_B_Report.pdf`](report/Project_B_Report.pdf) · Slides: **[ofernandezr29.github.io/steam-db](https://ofernandezr29.github.io/steam-db/)** (use ← → and F for full screen; source in [`presentation/index.html`](presentation/index.html))
 
 ## Layout
 
