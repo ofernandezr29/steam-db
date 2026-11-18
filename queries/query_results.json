@@ -1,0 +1,1176 @@
+{
+ "Q01": {
+  "question": "Which tags have the best-rated games on Steam, counting only tags used by at least N games?",
+  "uses": "JOIN of 3 tables, GROUP BY + HAVING",
+  "sql": "SELECT t.name                              AS tag,\n       count(*)                            AS games,\n       round(avg(g.positive_ratio), 1)     AS avg_positive_ratio,\n       sum(g.user_reviews)                 AS store_reviews\nFROM tags t\nJOIN game_tags gt USING (tag_id)\nJOIN games g      USING (app_id)\nGROUP BY t.name\nHAVING count(*) >= %(min_games)s\nORDER BY avg_positive_ratio DESC, games DESC\nLIMIT %(limit)s;",
+  "params": {
+   "min_games": 500,
+   "limit": 10
+  },
+  "columns": [
+   "tag",
+   "games",
+   "avg_positive_ratio",
+   "store_reviews"
+  ],
+  "rows": [
+   [
+    "Cats",
+    530,
+    88.2,
+    284898
+   ],
+   [
+    "Soundtrack",
+    872,
+    87.9,
+    347060
+   ],
+   [
+    "Precision Platformer",
+    762,
+    87.8,
+    221804
+   ],
+   [
+    "LGBTQ+",
+    879,
+    86.5,
+    775793
+   ],
+   [
+    "Emotional",
+    1292,
+    86.1,
+    1188926
+   ],
+   [
+    "Minimalist",
+    2322,
+    85.7,
+    784124
+   ],
+   [
+    "Abstract",
+    936,
+    85.2,
+    278660
+   ],
+   [
+    "Score Attack",
+    1012,
+    85.1,
+    552229
+   ],
+   [
+    "Hand-drawn",
+    1860,
+    85.0,
+    1274883
+   ],
+   [
+    "Romance",
+    1278,
+    85.0,
+    1257381
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 0.05,
+  "extra": ""
+ },
+ "Q02": {
+  "question": "What were the most reviewed games of each release year, and how many of their reviewers recommend them?",
+  "uses": "CTE, JOIN, window function RANK() OVER (PARTITION BY ...)",
+  "sql": "WITH per_game AS (\n    SELECT g.app_id, g.title,\n           extract(year FROM g.date_release)::int            AS release_year,\n           count(*)                                          AS reviews,\n           round(100.0 * avg(r.is_recommended::int), 1)      AS pct_recommended\n    FROM games g\n    JOIN recommendations r USING (app_id)\n    WHERE g.date_release BETWEEN make_date(%(year_from)s, 1, 1) AND make_date(%(year_to)s, 12, 31)\n    GROUP BY g.app_id, g.title, g.date_release\n)\nSELECT release_year, rnk, title, reviews, pct_recommended\nFROM (SELECT p.*, RANK() OVER (PARTITION BY release_year ORDER BY reviews DESC) AS rnk\n      FROM per_game p) ranked\nWHERE rnk <= %(top)s\nORDER BY release_year DESC, rnk;",
+  "params": {
+   "year_from": 2018,
+   "year_to": 2022,
+   "top": 3
+  },
+  "columns": [
+   "release_year",
+   "rnk",
+   "title",
+   "reviews",
+   "pct_recommended"
+  ],
+  "rows": [
+   [
+    2022,
+    1,
+    "Call of Duty®",
+    133275,
+    64.2
+   ],
+   [
+    2022,
+    2,
+    "Lost Ark",
+    129522,
+    72.6
+   ],
+   [
+    2022,
+    3,
+    "Mount & Blade II: Bannerlord",
+    127532,
+    87.5
+   ],
+   [
+    2021,
+    1,
+    "Forza Horizon 4",
+    120006,
+    90.1
+   ],
+   [
+    2021,
+    2,
+    "Battlefield™ 2042",
+    106386,
+    32.8
+   ],
+   [
+    2021,
+    3,
+    "New World",
+    96548,
+    69.7
+   ],
+   [
+    2020,
+    1,
+    "Cyberpunk 2077",
+    226414,
+    74.5
+   ],
+   [
+    2020,
+    2,
+    "Sea of Thieves 2023 Edition",
+    149875,
+    89.5
+   ],
+   [
+    2020,
+    3,
+    "Factorio",
+    112195,
+    96.7
+   ],
+   [
+    2019,
+    1,
+    "Destiny 2",
+    185527,
+    81.9
+   ],
+   [
+    2019,
+    2,
+    "Red Dead Redemption 2",
+    158370,
+    88.9
+   ],
+   [
+    2019,
+    3,
+    "Space Engineers",
+    97026,
+    88.7
+   ],
+   [
+    2018,
+    1,
+    "Rust",
+    270684,
+    83.6
+   ],
+   [
+    2018,
+    2,
+    "Paladins®",
+    204176,
+    84.0
+   ],
+   [
+    2018,
+    3,
+    "Wallpaper Engine",
+    190129,
+    98.2
+   ]
+  ],
+  "row_count": 15,
+  "seconds": 1.24,
+  "extra": ""
+ },
+ "Q03": {
+  "question": "How did the number of reviews and the share of positive ones evolve month by month (optionally for one tag), and how much did each month grow over the same month one year before?",
+  "uses": "CTE, subquery (IN), window functions LAG()",
+  "sql": "WITH monthly AS (\n    SELECT date_trunc('month', r.review_date)::date          AS month,\n           count(*)                                          AS reviews,\n           round(100.0 * avg(r.is_recommended::int), 1)      AS pct_recommended\n    FROM recommendations r\n    WHERE r.review_date BETWEEN %(date_from)s AND %(date_to)s\n      AND (%(tag)s IS NULL OR r.app_id IN (SELECT gt.app_id\n                                           FROM game_tags gt JOIN tags t USING (tag_id)\n                                           WHERE t.name = %(tag)s))\n    GROUP BY 1\n)\nSELECT month, reviews, pct_recommended,\n       reviews - LAG(reviews) OVER w                                   AS change_vs_prev_month,\n       round(100.0 * (reviews - LAG(reviews, 12) OVER w)\n                   / NULLIF(LAG(reviews, 12) OVER w, 0), 1)            AS growth_vs_year_before_pct\nFROM monthly\nWINDOW w AS (ORDER BY month)\nORDER BY month;",
+  "params": {
+   "date_from": "2019-01-01",
+   "date_to": "2022-12-31",
+   "tag": "Roguelike"
+  },
+  "columns": [
+   "month",
+   "reviews",
+   "pct_recommended",
+   "change_vs_prev_month",
+   "growth_vs_year_before_pct"
+  ],
+  "rows": [
+   [
+    "2019-01-01",
+    5464,
+    82.2,
+    null,
+    null
+   ],
+   [
+    "2019-02-01",
+    4572,
+    81.4,
+    -892,
+    null
+   ],
+   [
+    "2019-03-01",
+    4293,
+    82.1,
+    -279,
+    null
+   ],
+   [
+    "2019-04-01",
+    4259,
+    80.4,
+    -34,
+    null
+   ],
+   [
+    "2019-05-01",
+    5306,
+    78.4,
+    1047,
+    null
+   ],
+   [
+    "2019-06-01",
+    14408,
+    91.4,
+    9102,
+    null
+   ],
+   [
+    "2019-07-01",
+    12655,
+    88.6,
+    -1753,
+    null
+   ],
+   [
+    "2019-08-01",
+    5538,
+    79.9,
+    -7117,
+    null
+   ],
+   [
+    "2019-09-01",
+    5023,
+    80.8,
+    -515,
+    null
+   ],
+   [
+    "2019-10-01",
+    5676,
+    84.0,
+    653,
+    null
+   ],
+   [
+    "2019-11-01",
+    19288,
+    93.0,
+    13612,
+    null
+   ],
+   [
+    "2019-12-01",
+    12637,
+    90.7,
+    -6651,
+    null
+   ],
+   [
+    "2020-01-01",
+    10418,
+    88.8,
+    -2219,
+    90.7
+   ],
+   [
+    "2020-02-01",
+    16891,
+    87.0,
+    6473,
+    269.4
+   ],
+   [
+    "2020-03-01",
+    13482,
+    87.9,
+    -3409,
+    214.0
+   ]
+  ],
+  "row_count": 48,
+  "seconds": 0.75,
+  "extra": ""
+ },
+ "Q04": {
+  "question": "Do players recommend expensive games more than cheap or free ones, and do they play them longer before reviewing (optionally only games for one platform)?",
+  "uses": "CTE (2 steps), CASE, JOIN, EXISTS subquery, ordered-set aggregate",
+  "sql": "WITH priced AS (\n    SELECT g.app_id,\n           CASE WHEN g.price_final = 0  THEN 1 WHEN g.price_final < 5  THEN 2\n                WHEN g.price_final < 10 THEN 3 WHEN g.price_final < 20 THEN 4\n                WHEN g.price_final < 40 THEN 5 ELSE 6 END            AS band\n    FROM games g\n    WHERE %(platform)s IS NULL\n       OR EXISTS (SELECT 1 FROM game_platforms gp JOIN platforms p USING (platform_id)\n                  WHERE gp.app_id = g.app_id AND p.name = %(platform)s)\n), per_band AS (\n    SELECT p.band,\n           count(DISTINCT p.app_id)                                   AS games,\n           count(*)                                                   AS reviews,\n           round(100.0 * avg(r.is_recommended::int), 1)               AS pct_recommended,\n           percentile_disc(0.5) WITHIN GROUP (ORDER BY r.hours)       AS median_hours\n    FROM priced p\n    JOIN recommendations r USING (app_id)\n    GROUP BY p.band\n)\nSELECT (ARRAY['Free', '0.01-4.99', '5-9.99', '10-19.99', '20-39.99', '40+'])[band] AS price_band,\n       games, reviews, pct_recommended, median_hours\nFROM per_band\nORDER BY band;",
+  "params": {
+   "platform": null
+  },
+  "columns": [
+   "price_band",
+   "games",
+   "reviews",
+   "pct_recommended",
+   "median_hours"
+  ],
+  "rows": [
+   [
+    "Free",
+    6624,
+    7424008,
+    80.0,
+    27.8
+   ],
+   [
+    "0.01-4.99",
+    13391,
+    3618467,
+    84.7,
+    6.6
+   ],
+   [
+    "5-9.99",
+    7900,
+    4397673,
+    87.9,
+    12.2
+   ],
+   [
+    "10-19.99",
+    7040,
+    9573354,
+    88.3,
+    22.2
+   ],
+   [
+    "20-39.99",
+    2119,
+    10177285,
+    88.5,
+    42.7
+   ],
+   [
+    "40+",
+    536,
+    5963986,
+    83.3,
+    60.3
+   ]
+  ],
+  "row_count": 6,
+  "seconds": 25.45,
+  "extra": ""
+ },
+ "Q05": {
+  "question": "Which games do the reviewers in this dataset like much more, or much less, than the Steam store score says?",
+  "uses": "derived-table subquery with GROUP BY + HAVING, JOIN",
+  "sql": "SELECT g.title,\n       g.positive_ratio                       AS steam_positive_ratio,\n       s.pct_recommended                      AS dataset_pct_recommended,\n       s.pct_recommended - g.positive_ratio   AS gap,\n       s.reviews                              AS dataset_reviews\nFROM games g\nJOIN (SELECT app_id, count(*) AS reviews,\n             round(100.0 * avg(is_recommended::int), 1) AS pct_recommended\n      FROM recommendations\n      GROUP BY app_id\n      HAVING count(*) >= %(min_reviews)s) s USING (app_id)\nORDER BY abs(s.pct_recommended - g.positive_ratio) DESC\nLIMIT %(limit)s;",
+  "params": {
+   "min_reviews": 5000,
+   "limit": 10
+  },
+  "columns": [
+   "title",
+   "steam_positive_ratio",
+   "dataset_pct_recommended",
+   "gap",
+   "dataset_reviews"
+  ],
+  "rows": [
+   [
+    "Grand Theft Auto V",
+    86,
+    68.3,
+    -17.7,
+    163909
+   ],
+   [
+    "Detention",
+    95,
+    78.2,
+    -16.8,
+    7770
+   ],
+   [
+    "NARAKA: BLADEPOINT",
+    75,
+    59.2,
+    -15.8,
+    30308
+   ],
+   [
+    "VRChat",
+    73,
+    57.6,
+    -15.4,
+    98575
+   ],
+   [
+    "Realm Royale Reforged",
+    75,
+    61.1,
+    -13.9,
+    11905
+   ],
+   [
+    "War Thunder",
+    75,
+    61.4,
+    -13.6,
+    80609
+   ],
+   [
+    "Book of Demons",
+    91,
+    77.7,
+    -13.3,
+    5727
+   ],
+   [
+    "Total War: THREE KINGDOMS",
+    82,
+    68.8,
+    -13.2,
+    49373
+   ],
+   [
+    "Heroes & Generals",
+    66,
+    53.3,
+    -12.7,
+    9019
+   ],
+   [
+    "IdleOn - The Idle MMO",
+    76,
+    88.5,
+    12.5,
+    8007
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 1.13,
+  "extra": ""
+ },
+ "Q06": {
+  "question": "Are reviews written during early access (before the release date) more or less positive than those written after release, by tag?",
+  "uses": "JOIN of 4 tables, aggregates with FILTER, GROUP BY + HAVING",
+  "sql": "SELECT t.name                                                         AS tag,\n       count(*) FILTER (WHERE r.review_date <  g.date_release)        AS early_access_reviews,\n       round(100.0 * avg(r.is_recommended::int)\n             FILTER (WHERE r.review_date <  g.date_release), 1)       AS pct_recommended_early,\n       round(100.0 * avg(r.is_recommended::int)\n             FILTER (WHERE r.review_date >= g.date_release), 1)       AS pct_recommended_after\nFROM recommendations r\nJOIN games g      USING (app_id)\nJOIN game_tags gt ON gt.app_id = r.app_id AND gt.tag_rank <= 5\nJOIN tags t       USING (tag_id)\nGROUP BY t.name\nHAVING count(*) FILTER (WHERE r.review_date < g.date_release) >= %(min_reviews)s\nORDER BY early_access_reviews DESC\nLIMIT %(limit)s;",
+  "params": {
+   "min_reviews": 50000,
+   "limit": 10
+  },
+  "columns": [
+   "tag",
+   "early_access_reviews",
+   "pct_recommended_early",
+   "pct_recommended_after"
+  ],
+  "rows": [
+   [
+    "Multiplayer",
+    478233,
+    77.7,
+    82.0
+   ],
+   [
+    "Action",
+    307285,
+    80.4,
+    84.1
+   ],
+   [
+    "Survival",
+    261611,
+    78.9,
+    79.1
+   ],
+   [
+    "Free to Play",
+    256162,
+    82.8,
+    81.7
+   ],
+   [
+    "Open World",
+    239131,
+    75.7,
+    82.1
+   ],
+   [
+    "Indie",
+    213485,
+    85.6,
+    85.4
+   ],
+   [
+    "Sandbox",
+    210720,
+    64.5,
+    83.6
+   ],
+   [
+    "Simulation",
+    203896,
+    86.1,
+    81.7
+   ],
+   [
+    "Singleplayer",
+    192334,
+    60.4,
+    86.4
+   ],
+   [
+    "FPS",
+    187977,
+    76.0,
+    84.9
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 4.19,
+  "extra": ""
+ },
+ "Q07": {
+  "question": "How has support for Mac, Linux and Steam Deck evolved among the games released each year?",
+  "uses": "JOIN, GROUP BY, window function SUM() OVER (PARTITION BY ...)",
+  "sql": "WITH per_year AS (\n    SELECT extract(year FROM g.date_release)::int AS release_year,\n           p.name                                 AS platform,\n           count(*)                               AS games\n    FROM games g\n    JOIN game_platforms gp USING (app_id)\n    JOIN platforms p       USING (platform_id)\n    WHERE g.date_release >= make_date(%(year_from)s, 1, 1)\n    GROUP BY 1, 2\n), totals AS (\n    SELECT extract(year FROM date_release)::int AS release_year, count(*) AS games_released\n    FROM games\n    GROUP BY 1\n)\nSELECT y.release_year, y.platform, y.games, t.games_released,\n       round(100.0 * y.games / t.games_released, 1)                          AS pct_of_year,\n       sum(y.games) OVER (PARTITION BY y.platform ORDER BY y.release_year)   AS cumulative_games\nFROM per_year y\nJOIN totals t USING (release_year)\nORDER BY y.release_year, y.platform;",
+  "params": {
+   "year_from": 2012
+  },
+  "columns": [
+   "release_year",
+   "platform",
+   "games",
+   "games_released",
+   "pct_of_year",
+   "cumulative_games"
+  ],
+  "rows": [
+   [
+    2012,
+    "Linux",
+    150,
+    565,
+    26.5,
+    150.0
+   ],
+   [
+    2012,
+    "Mac",
+    197,
+    565,
+    34.9,
+    197.0
+   ],
+   [
+    2012,
+    "Steam Deck",
+    565,
+    565,
+    100.0,
+    565.0
+   ],
+   [
+    2012,
+    "Windows",
+    555,
+    565,
+    98.2,
+    555.0
+   ],
+   [
+    2013,
+    "Linux",
+    314,
+    822,
+    38.2,
+    464.0
+   ],
+   [
+    2013,
+    "Mac",
+    360,
+    822,
+    43.8,
+    557.0
+   ],
+   [
+    2013,
+    "Steam Deck",
+    822,
+    822,
+    100.0,
+    1387.0
+   ],
+   [
+    2013,
+    "Windows",
+    816,
+    822,
+    99.3,
+    1371.0
+   ],
+   [
+    2014,
+    "Linux",
+    588,
+    1921,
+    30.6,
+    1052.0
+   ],
+   [
+    2014,
+    "Mac",
+    800,
+    1921,
+    41.6,
+    1357.0
+   ],
+   [
+    2014,
+    "Steam Deck",
+    1921,
+    1921,
+    100.0,
+    3308.0
+   ],
+   [
+    2014,
+    "Windows",
+    1900,
+    1921,
+    98.9,
+    3271.0
+   ],
+   [
+    2015,
+    "Linux",
+    869,
+    2963,
+    29.3,
+    1921.0
+   ],
+   [
+    2015,
+    "Mac",
+    1171,
+    2963,
+    39.5,
+    2528.0
+   ],
+   [
+    2015,
+    "Steam Deck",
+    2963,
+    2963,
+    100.0,
+    6271.0
+   ]
+  ],
+  "row_count": 48,
+  "seconds": 0.04,
+  "extra": ""
+ },
+ "Q08": {
+  "question": "Which tags are over-represented among the best-rated games ('Overwhelmingly Positive') compared with the whole catalogue?",
+  "uses": "2 CTEs, scalar subqueries, JOIN, HAVING",
+  "sql": "WITH top_games AS (\n    SELECT g.app_id\n    FROM games g JOIN ratings ra USING (rating_id)\n    WHERE ra.label = %(rating)s\n), tag_counts AS (\n    SELECT gt.tag_id,\n           count(*)                                                    AS games_all,\n           count(*) FILTER (WHERE gt.app_id IN (SELECT app_id FROM top_games)) AS games_top\n    FROM game_tags gt\n    GROUP BY gt.tag_id\n)\nSELECT t.name AS tag, tc.games_top, tc.games_all,\n       round(100.0 * tc.games_top / (SELECT count(*) FROM top_games), 1)  AS pct_of_top_games,\n       round(100.0 * tc.games_all / (SELECT count(*) FROM games), 1)      AS pct_of_all_games,\n       round((1.0 * tc.games_top / (SELECT count(*) FROM top_games))\n           / (1.0 * tc.games_all / (SELECT count(*) FROM games)), 2)      AS lift\nFROM tag_counts tc\nJOIN tags t USING (tag_id)\nWHERE tc.games_top >= %(min_games)s\nORDER BY lift DESC\nLIMIT %(limit)s;",
+  "params": {
+   "rating": "Overwhelmingly Positive",
+   "min_games": 20,
+   "limit": 10
+  },
+  "columns": [
+   "tag",
+   "games_top",
+   "games_all",
+   "pct_of_top_games",
+   "pct_of_all_games",
+   "lift"
+  ],
+  "rows": [
+   [
+    "Touch-Friendly",
+    25,
+    214,
+    2.3,
+    0.4,
+    5.35
+   ],
+   [
+    "Addictive",
+    31,
+    326,
+    2.8,
+    0.6,
+    4.36
+   ],
+   [
+    "Dating Sim",
+    94,
+    1091,
+    8.5,
+    2.1,
+    3.95
+   ],
+   [
+    "LGBTQ+",
+    73,
+    879,
+    6.6,
+    1.7,
+    3.81
+   ],
+   [
+    "Great Soundtrack",
+    317,
+    3912,
+    28.6,
+    7.7,
+    3.71
+   ],
+   [
+    "Romance",
+    98,
+    1278,
+    8.8,
+    2.5,
+    3.51
+   ],
+   [
+    "Cult Classic",
+    23,
+    318,
+    2.1,
+    0.6,
+    3.31
+   ],
+   [
+    "Moddable",
+    49,
+    713,
+    4.4,
+    1.4,
+    3.15
+   ],
+   [
+    "Blood",
+    23,
+    338,
+    2.1,
+    0.7,
+    3.12
+   ],
+   [
+    "Classic",
+    88,
+    1316,
+    7.9,
+    2.6,
+    3.06
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 0.07,
+  "extra": ""
+ },
+ "Q09": {
+  "question": "Which reviewers write the reviews that other players find most helpful (among users with at least N reviews)?",
+  "uses": "JOIN, GROUP BY + HAVING, window function RANK() over an aggregate",
+  "sql": "SELECT user_id, products, reviews, helpful_votes, helpful_per_review, pct_recommended, rnk\nFROM (\n    SELECT u.user_id, u.products,\n           count(*)                                          AS reviews,\n           sum(r.helpful)                                    AS helpful_votes,\n           round(avg(r.helpful), 1)                          AS helpful_per_review,\n           round(100.0 * avg(r.is_recommended::int), 1)      AS pct_recommended,\n           RANK() OVER (ORDER BY avg(r.helpful) DESC)        AS rnk\n    FROM users u\n    JOIN recommendations r USING (user_id)\n    GROUP BY u.user_id, u.products\n    HAVING count(*) >= %(min_reviews)s\n) ranked\nWHERE rnk <= %(limit)s\nORDER BY rnk;",
+  "params": {
+   "min_reviews": 50,
+   "limit": 10
+  },
+  "columns": [
+   "user_id",
+   "products",
+   "reviews",
+   "helpful_votes",
+   "helpful_per_review",
+   "pct_recommended",
+   "rnk"
+  ],
+  "rows": [
+   [
+    5860500,
+    556,
+    129,
+    70096,
+    543.4,
+    82.9,
+    1
+   ],
+   [
+    14274968,
+    2313,
+    81,
+    43063,
+    531.6,
+    100.0,
+    2
+   ],
+   [
+    12012557,
+    929,
+    58,
+    23139,
+    398.9,
+    100.0,
+    3
+   ],
+   [
+    12686573,
+    2670,
+    59,
+    18219,
+    308.8,
+    78.0,
+    4
+   ],
+   [
+    8983002,
+    8163,
+    52,
+    12239,
+    235.4,
+    94.2,
+    5
+   ],
+   [
+    13085543,
+    1164,
+    82,
+    19280,
+    235.1,
+    95.1,
+    6
+   ],
+   [
+    5016837,
+    5836,
+    119,
+    27150,
+    228.2,
+    0.8,
+    7
+   ],
+   [
+    7390717,
+    1269,
+    52,
+    11650,
+    224.0,
+    75.0,
+    8
+   ],
+   [
+    13644747,
+    342,
+    51,
+    11043,
+    216.5,
+    90.2,
+    9
+   ],
+   [
+    8203128,
+    258,
+    64,
+    13816,
+    215.9,
+    73.4,
+    10
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 22.42,
+  "extra": ""
+ },
+ "Q10": {
+  "question": "For the games whose title matches a search, how do their Steam score, price and reviews in the dataset compare?",
+  "uses": "JOIN, two correlated subqueries, string_agg, ILIKE with a bound parameter",
+  "sql": "SELECT g.app_id, g.title, g.date_release, ra.label AS rating, g.positive_ratio,\n       g.price_final, g.price_original, g.discount,\n       (SELECT count(*) FROM recommendations r WHERE r.app_id = g.app_id) AS dataset_reviews,\n       (SELECT string_agg(t.name, ', ' ORDER BY gt.tag_rank)\n        FROM game_tags gt JOIN tags t USING (tag_id)\n        WHERE gt.app_id = g.app_id AND gt.tag_rank <= 5)                  AS top_tags\nFROM games g\nJOIN ratings ra USING (rating_id)\nWHERE g.title ILIKE '%%' || %(search)s || '%%'\nORDER BY g.user_reviews DESC\nLIMIT %(limit)s;",
+  "params": {
+   "search": "portal",
+   "limit": 10
+  },
+  "columns": [
+   "app_id",
+   "title",
+   "date_release",
+   "rating",
+   "positive_ratio",
+   "price_final",
+   "price_original",
+   "discount",
+   "dataset_reviews",
+   "top_tags"
+  ],
+  "rows": [
+   [
+    620,
+    "Portal 2",
+    "2011-04-18",
+    "Overwhelmingly Positive",
+    98,
+    10.0,
+    null,
+    null,
+    110740,
+    null
+   ],
+   [
+    400,
+    "Portal",
+    "2007-10-10",
+    "Overwhelmingly Positive",
+    98,
+    10.0,
+    null,
+    null,
+    52705,
+    null
+   ],
+   [
+    317400,
+    "Portal Stories: Mel",
+    "2015-06-25",
+    "Overwhelmingly Positive",
+    96,
+    0.0,
+    0.0,
+    0.0,
+    10209,
+    "Free to Play, Puzzle, Adventure, Mod, Action"
+   ],
+   [
+    1255980,
+    "Portal Reloaded",
+    "2021-04-19",
+    "Overwhelmingly Positive",
+    96,
+    0.0,
+    0.0,
+    0.0,
+    8777,
+    "Free to Play, Action, Puzzle, Mod, First-Person"
+   ],
+   [
+    374040,
+    "Portal Knights",
+    "2017-05-18",
+    "Very Positive",
+    83,
+    6.99,
+    19.99,
+    65.0,
+    9708,
+    "Adventure, Sandbox, Multiplayer, RPG, Building"
+   ],
+   [
+    2012840,
+    "Portal with RTX",
+    "2022-12-08",
+    "Mixed",
+    50,
+    0.0,
+    0.0,
+    0.0,
+    5606,
+    "Action, Puzzle, First-Person, Beautiful, Singleplayer"
+   ],
+   [
+    684410,
+    "Bridge Constructor Portal",
+    "2017-12-20",
+    "Very Positive",
+    91,
+    0.99,
+    9.99,
+    90.0,
+    2602,
+    "Puzzle, Strategy, Simulation, Physics, Singleplayer"
+   ],
+   [
+    446750,
+    "Portal Stories: VR",
+    "2016-05-16",
+    "Very Positive",
+    85,
+    0.0,
+    0.0,
+    0.0,
+    0,
+    "Adventure, VR, Puzzle, Free to Play, Mod"
+   ],
+   [
+    384570,
+    "Zanzarah: The Hidden Portal",
+    "2015-08-20",
+    "Mostly Positive",
+    70,
+    7.99,
+    7.99,
+    0.0,
+    409,
+    "Adventure, Action, RPG, Fantasy, Female Protagonist"
+   ],
+   [
+    104600,
+    "Portal 2 - The Final Hours",
+    "2011-05-17",
+    "Mostly Positive",
+    78,
+    1.99,
+    1.99,
+    0.0,
+    380,
+    "Documentary, Story Rich, Action, Puzzle, Adventure"
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 0.03,
+  "extra": ""
+ },
+ "Q11": {
+  "question": "If a sale (for example 50 percent) were applied to every paid game with a given tag, how many games would change and what would the average price become? (UPDATE inside a transaction, then ROLLBACK)",
+  "uses": "data-modifying CTE (UPDATE ... RETURNING), IN subquery, run inside a transaction ended with ROLLBACK",
+  "sql": "WITH changed AS (\n    UPDATE games g\n    SET price_final = round(coalesce(g.price_original, g.price_final) * (1 - %(pct)s / 100.0), 2),\n        discount    = CASE WHEN g.price_original IS NULL THEN NULL ELSE %(pct)s END\n    WHERE g.price_final > 0\n      AND g.app_id IN (SELECT gt.app_id FROM game_tags gt JOIN tags t USING (tag_id)\n                       WHERE t.name = %(tag)s)\n    RETURNING g.app_id, g.price_final\n)\nSELECT count(*)                       AS games_updated,\n       round(avg(c.price_final), 2)   AS avg_price_after,\n       (SELECT round(avg(g.price_final), 2) FROM games g\n        WHERE g.app_id IN (SELECT app_id FROM changed)) AS avg_price_before\nFROM changed c;",
+  "params": {
+   "tag": "Roguelike",
+   "pct": 50
+  },
+  "columns": [
+   "games_updated",
+   "avg_price_after",
+   "avg_price_before"
+  ],
+  "rows": [
+   [
+    1800,
+    5.67,
+    10.52
+   ]
+  ],
+  "row_count": 1,
+  "seconds": 0.03,
+  "extra": "After ROLLBACK the average price of those games is 10.52 (same as avg_price_before): the UPDATE left no trace."
+ },
+ "Q12": {
+  "question": "Do players who do not recommend a game stop playing it earlier? Median hours at review time, recommended vs not, for the most common tags.",
+  "uses": "CTE, JOIN, GROUP BY + HAVING, ordered-set aggregates with FILTER",
+  "sql": "WITH tagged AS (\n    SELECT t.name AS tag, r.is_recommended, r.hours\n    FROM recommendations r\n    JOIN game_tags gt ON gt.app_id = r.app_id AND gt.tag_rank = 1\n    JOIN tags t       USING (tag_id)\n)\nSELECT tag,\n       count(*)                                                               AS reviews,\n       percentile_disc(0.5) WITHIN GROUP (ORDER BY hours) FILTER (WHERE is_recommended)     AS median_hours_recommended,\n       percentile_disc(0.5) WITHIN GROUP (ORDER BY hours) FILTER (WHERE NOT is_recommended) AS median_hours_not_recommended\nFROM tagged\nGROUP BY tag\nHAVING count(*) >= %(min_reviews)s\nORDER BY reviews DESC\nLIMIT %(limit)s;",
+  "params": {
+   "min_reviews": 100000,
+   "limit": 10
+  },
+  "columns": [
+   "tag",
+   "reviews",
+   "median_hours_recommended",
+   "median_hours_not_recommended"
+  ],
+  "rows": [
+   [
+    "Action",
+    1799581,
+    11.9,
+    3.2
+   ],
+   [
+    "Free to Play",
+    1733307,
+    11.0,
+    2.5
+   ],
+   [
+    "RPG",
+    965002,
+    32.6,
+    9.3
+   ],
+   [
+    "Adventure",
+    903209,
+    9.4,
+    3.7
+   ],
+   [
+    "Strategy",
+    855735,
+    29.6,
+    7.0
+   ],
+   [
+    "FPS",
+    796024,
+    14.8,
+    5.0
+   ],
+   [
+    "Open World",
+    694832,
+    32.0,
+    13.7
+   ],
+   [
+    "Simulation",
+    662293,
+    17.0,
+    3.6
+   ],
+   [
+    "Indie",
+    629778,
+    4.0,
+    1.7
+   ],
+   [
+    "Horror",
+    548092,
+    8.2,
+    2.5
+   ]
+  ],
+  "row_count": 10,
+  "seconds": 11.29,
+  "extra": ""
+ }
+}

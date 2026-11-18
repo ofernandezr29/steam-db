@@ -1,0 +1,106 @@
+   table_name    |             constraint_name             |    type     | validated |                              definition                               
+-----------------+-----------------------------------------+-------------+-----------+-----------------------------------------------------------------------
+ game_platforms  | game_platforms_app_id_fkey              | FOREIGN KEY | t         | FOREIGN KEY (app_id) REFERENCES games(app_id) ON DELETE CASCADE
+ game_platforms  | game_platforms_platform_id_fkey         | FOREIGN KEY | t         | FOREIGN KEY (platform_id) REFERENCES platforms(platform_id)
+ game_platforms  | game_platforms_app_id_not_null          | NOT NULL    | t         | NOT NULL app_id
+ game_platforms  | game_platforms_platform_id_not_null     | NOT NULL    | t         | NOT NULL platform_id
+ game_platforms  | game_platforms_pkey                     | PRIMARY KEY | t         | PRIMARY KEY (app_id, platform_id)
+ game_tags       | game_tags_tag_rank_check                | CHECK       | t         | CHECK (((tag_rank >= 1) AND (tag_rank <= 20)))
+ game_tags       | game_tags_app_id_fkey                   | FOREIGN KEY | t         | FOREIGN KEY (app_id) REFERENCES games(app_id) ON DELETE CASCADE
+ game_tags       | game_tags_tag_id_fkey                   | FOREIGN KEY | t         | FOREIGN KEY (tag_id) REFERENCES tags(tag_id)
+ game_tags       | game_tags_app_id_not_null               | NOT NULL    | t         | NOT NULL app_id
+ game_tags       | game_tags_tag_id_not_null               | NOT NULL    | t         | NOT NULL tag_id
+ game_tags       | game_tags_tag_rank_not_null             | NOT NULL    | t         | NOT NULL tag_rank
+ game_tags       | game_tags_pkey                          | PRIMARY KEY | t         | PRIMARY KEY (app_id, tag_id)
+ game_tags       | game_tags_app_id_tag_rank_key           | UNIQUE      | t         | UNIQUE (app_id, tag_rank)
+ games           | games_app_id_check                      | CHECK       | t         | CHECK ((app_id > 0))
+ games           | games_date_release_check                | CHECK       | t         | CHECK ((date_release >= '1990-01-01'::date))
+ games           | games_discount_check                    | CHECK       | t         | CHECK (((discount >= (0)::numeric) AND (discount <= (100)::numeric)))
+ games           | games_final_le_original                 | CHECK       | t         | CHECK (((price_original IS NULL) OR (price_final <= price_original)))
+ games           | games_positive_ratio_check              | CHECK       | t         | CHECK (((positive_ratio >= 0) AND (positive_ratio <= 100)))
+ games           | games_price_final_check                 | CHECK       | t         | CHECK ((price_final >= (0)::numeric))
+ games           | games_price_original_check              | CHECK       | t         | CHECK ((price_original >= (0)::numeric))
+ games           | games_title_check                       | CHECK       | t         | CHECK ((btrim((title)::text) <> ''::text))
+ games           | games_user_reviews_check                | CHECK       | t         | CHECK ((user_reviews >= 0))
+ games           | games_rating_id_fkey                    | FOREIGN KEY | t         | FOREIGN KEY (rating_id) REFERENCES ratings(rating_id)
+ games           | games_app_id_not_null                   | NOT NULL    | t         | NOT NULL app_id
+ games           | games_date_release_not_null             | NOT NULL    | t         | NOT NULL date_release
+ games           | games_positive_ratio_not_null           | NOT NULL    | t         | NOT NULL positive_ratio
+ games           | games_price_final_not_null              | NOT NULL    | t         | NOT NULL price_final
+ games           | games_rating_id_not_null                | NOT NULL    | t         | NOT NULL rating_id
+ games           | games_title_not_null                    | NOT NULL    | t         | NOT NULL title
+ games           | games_user_reviews_not_null             | NOT NULL    | t         | NOT NULL user_reviews
+ games           | games_pkey                              | PRIMARY KEY | t         | PRIMARY KEY (app_id)
+ platforms       | platforms_name_not_null                 | NOT NULL    | t         | NOT NULL name
+ platforms       | platforms_platform_id_not_null          | NOT NULL    | t         | NOT NULL platform_id
+ platforms       | platforms_pkey                          | PRIMARY KEY | t         | PRIMARY KEY (platform_id)
+ platforms       | platforms_name_key                      | UNIQUE      | t         | UNIQUE (name)
+ ratings         | ratings_rank_order_check                | CHECK       | t         | CHECK (((rank_order >= 1) AND (rank_order <= 9)))
+ ratings         | ratings_label_not_null                  | NOT NULL    | t         | NOT NULL label
+ ratings         | ratings_rank_order_not_null             | NOT NULL    | t         | NOT NULL rank_order
+ ratings         | ratings_rating_id_not_null              | NOT NULL    | t         | NOT NULL rating_id
+ ratings         | ratings_pkey                            | PRIMARY KEY | t         | PRIMARY KEY (rating_id)
+ ratings         | ratings_label_key                       | UNIQUE      | t         | UNIQUE (label)
+ ratings         | ratings_rank_order_key                  | UNIQUE      | t         | UNIQUE (rank_order)
+ recommendations | recommendations_funny_check             | CHECK       | t         | CHECK ((funny >= 0))
+ recommendations | recommendations_helpful_check           | CHECK       | t         | CHECK ((helpful >= 0))
+ recommendations | recommendations_hours_check             | CHECK       | t         | CHECK ((hours >= (0)::numeric))
+ recommendations | recommendations_review_date_check       | CHECK       | t         | CHECK ((review_date >= '2003-09-12'::date))
+ recommendations | recommendations_review_id_check         | CHECK       | t         | CHECK ((review_id >= 0))
+ recommendations | recommendations_app_id_fkey             | FOREIGN KEY | t         | FOREIGN KEY (app_id) REFERENCES games(app_id)
+ recommendations | recommendations_user_id_fkey            | FOREIGN KEY | t         | FOREIGN KEY (user_id) REFERENCES users(user_id)
+ recommendations | recommendations_app_id_not_null         | NOT NULL    | t         | NOT NULL app_id
+ recommendations | recommendations_funny_not_null          | NOT NULL    | t         | NOT NULL funny
+ recommendations | recommendations_helpful_not_null        | NOT NULL    | t         | NOT NULL helpful
+ recommendations | recommendations_hours_not_null          | NOT NULL    | t         | NOT NULL hours
+ recommendations | recommendations_is_recommended_not_null | NOT NULL    | t         | NOT NULL is_recommended
+ recommendations | recommendations_review_date_not_null    | NOT NULL    | t         | NOT NULL review_date
+ recommendations | recommendations_review_id_not_null      | NOT NULL    | t         | NOT NULL review_id
+ recommendations | recommendations_user_id_not_null        | NOT NULL    | t         | NOT NULL user_id
+ recommendations | recommendations_pkey                    | PRIMARY KEY | t         | PRIMARY KEY (review_id)
+ recommendations | recommendations_one_per_user_game       | UNIQUE      | t         | UNIQUE (user_id, app_id)
+ tags            | tags_name_not_null                      | NOT NULL    | t         | NOT NULL name
+ tags            | tags_tag_id_not_null                    | NOT NULL    | t         | NOT NULL tag_id
+ tags            | tags_pkey                               | PRIMARY KEY | t         | PRIMARY KEY (tag_id)
+ tags            | tags_name_key                           | UNIQUE      | t         | UNIQUE (name)
+ users           | users_products_check                    | CHECK       | t         | CHECK ((products >= 0))
+ users           | users_user_id_check                     | CHECK       | t         | CHECK ((user_id >= 0))
+ users           | users_products_not_null                 | NOT NULL    | t         | NOT NULL products
+ users           | users_user_id_not_null                  | NOT NULL    | t         | NOT NULL user_id
+ users           | users_pkey                              | PRIMARY KEY | t         | PRIMARY KEY (user_id)
+(68 filas)
+
+   table_name    | pk | fk | unique | check | not_null 
+-----------------+----+----+--------+-------+----------
+ ratings         |  1 |  0 |      2 |     1 |        3
+ games           |  1 |  1 |      0 |     9 |        7
+ platforms       |  1 |  0 |      1 |     0 |        2
+ game_platforms  |  1 |  2 |      0 |     0 |        2
+ tags            |  1 |  0 |      1 |     0 |        2
+ game_tags       |  1 |  2 |      1 |     1 |        3
+ users           |  1 |  0 |      0 |     2 |        2
+ recommendations |  1 |  2 |      1 |     5 |        8
+(8 filas)
+
+   table_name    |   rows   
+-----------------+----------
+ ratings         |        9
+ platforms       |        4
+ games           |    50872
+ game_platforms  |   123005
+ tags            |      441
+ game_tags       |   584215
+ users           | 14306064
+ recommendations | 41154773
+(8 filas)
+
+BEGIN
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23505] duplicate key value violates unique constraint "games_pkey"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23503] insert or update on table "games" violates foreign key constraint "games_rating_id_fkey"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23514] new row for relation "games" violates check constraint "games_positive_ratio_check"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23514] new row for relation "games" violates check constraint "games_final_le_original"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23505] duplicate key value violates unique constraint "recommendations_one_per_user_game"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23514] new row for relation "recommendations" violates check constraint "recommendations_hours_check"
+psql:sql/verify_constraints.sql:60: NOTICE:  rejected  [23502] null value in column "name" of relation "tags" violates not-null constraint
+DO
+ROLLBACK

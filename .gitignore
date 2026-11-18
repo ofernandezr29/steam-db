@@ -1,0 +1,10 @@
+data/
+.venv/
+__pycache__/
+*.pyc
+report/build/
+.streamlit/secrets.toml
+presentation/build/
+presentation/deck.html
+presentation/guion.html
+presentation/Guion_presentacion.pdf

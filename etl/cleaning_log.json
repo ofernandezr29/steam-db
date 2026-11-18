@@ -1,0 +1,21 @@
+{
+  "loaded_at": "2026-11-18",
+  "seconds": 538,
+  "row_counts": {
+    "ratings": 9,
+    "platforms": 4,
+    "games": 50872,
+    "game_platforms": 123005,
+    "tags": 441,
+    "game_tags": 584215,
+    "users": 14306064,
+    "recommendations": 41154773
+  },
+  "cleaning_rules": {
+    "games: empty description -> NULL": 10373,
+    "games: price_original 0 with price_final > 0 -> NULL (and discount)": 985,
+    "games: empty tag list -> no game_tags rows": 1244,
+    "users: derived column reviews not loaded": 14306064,
+    "recommendations: duplicate (user_id, app_id) -> older review dropped": 21
+  }
+}

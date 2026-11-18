@@ -1,0 +1,13 @@
+[10:52:26] ratings: 9 rows, platforms: 4 rows
+[10:52:27] games: 50,872 rows
+[10:52:28] game_platforms: 123,005 rows
+[10:52:33] tags: 441 rows, game_tags: 584,215 rows
+[10:53:03] users: 14,306,064 rows (30s)
+[10:53:58] stage_recommendations: 41,154,794 rows read (55s)
+[11:01:24] recommendations: 41,154,773 rows (445s)
+[11:01:24] COMMIT done in 538s: {'ratings': 9, 'platforms': 4, 'games': 50872, 'game_platforms': 123005, 'tags': 441, 'game_tags': 584215, 'users': 14306064, 'recommendations': 41154773}
+        10,373  games: empty description -> NULL
+           985  games: price_original 0 with price_final > 0 -> NULL (and discount)
+         1,244  games: empty tag list -> no game_tags rows
+    14,306,064  users: derived column reviews not loaded
+            21  recommendations: duplicate (user_id, app_id) -> older review dropped

@@ -1,0 +1,10 @@
+$ psql -f sql/schema.sql && python etl/load.py --inject-error
+[10:52:16] ratings: 9 rows, platforms: 4 rows
+[10:52:17] games: 50,872 rows
+[10:52:18] game_platforms: 123,005 rows
+[10:52:23] tags: 441 rows, game_tags: 584,215 rows
+[10:52:23] inside the transaction: {'ratings': 9, 'platforms': 4, 'games': 50872, 'game_platforms': 123005, 'tags': 441, 'game_tags': 584215, 'users': 0, 'recommendations': 0}
+[10:52:23] injecting a game with positive_ratio = 150 (violates CHECK 0..100)
+[10:52:23] ERROR: CheckViolation: new row for relation "games" violates check constraint "games_positive_ratio_check"
+[10:52:23] ROLLBACK done
+[10:52:23] after rollback: {'ratings': 0, 'platforms': 0, 'games': 0, 'game_platforms': 0, 'tags': 0, 'game_tags': 0, 'users': 0, 'recommendations': 0}

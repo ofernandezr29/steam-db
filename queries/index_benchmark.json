@@ -1,0 +1,56 @@
+{
+  "All reviews of one game (Counter-Strike: Global Offensive), newest first": {
+    "without": {
+      "ms": 269.8,
+      "scans": [
+        "Seq Scan on recommendations"
+      ]
+    },
+    "with": {
+      "ms": 0.092,
+      "scans": [
+        "Index Only Scan on recommendations using recommendations_app_date_idx"
+      ]
+    }
+  },
+  "Monthly trend for one tag (Q03, tag 'Roguelike')": {
+    "without": {
+      "ms": 1850.1,
+      "scans": [
+        "Index Scan on tags using tags_name_key",
+        "Seq Scan on game_tags",
+        "Seq Scan on recommendations"
+      ]
+    },
+    "with": {
+      "ms": 774.1,
+      "scans": [
+        "Index Only Scan on game_tags using game_tags_tag_idx",
+        "Index Scan on tags using tags_name_key",
+        "Seq Scan on recommendations"
+      ]
+    }
+  },
+  "Title search with review count per game (Q10, 'portal')": {
+    "without": {
+      "ms": 5567.3,
+      "scans": [
+        "Index Only Scan on recommendations using recommendations_one_per_user_game",
+        "Index Scan on game_tags using game_tags_app_id_tag_rank_key",
+        "Index Scan on ratings using ratings_pkey",
+        "Seq Scan on games",
+        "Seq Scan on tags"
+      ]
+    },
+    "with": {
+      "ms": 44.0,
+      "scans": [
+        "Index Only Scan on recommendations using recommendations_app_date_idx",
+        "Index Scan on game_tags using game_tags_app_id_tag_rank_key",
+        "Seq Scan on games",
+        "Seq Scan on ratings",
+        "Seq Scan on tags"
+      ]
+    }
+  }
+}
